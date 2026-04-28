@@ -18,4 +18,15 @@ db.exec(`
   )
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS clicks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    url_id INTEGER NOT NULL REFERENCES urls(id),
+    timestamp TEXT DEFAULT (datetime('now')),
+    referrer TEXT,
+    user_agent TEXT,
+    ip_country TEXT
+  )
+`);
+
 module.exports = db;

@@ -7,6 +7,21 @@ app.use(express.json());
 
 const insertUrl = db.prepare('INSERT INTO urls (short_code, original_url) VALUES (?, ?)');
 const findByCode = db.prepare('SELECT * FROM urls WHERE short_code = ?');
+const insertClick = db.prepare('INSERT INTO clicks (url_id, referrer, user_agent, ip_country) VALUES (?, ?, ?, ?)');
+
+const statsQuery = db.prepare(`
+  SELECT u.original_url, u.created_at, u.expires_at, COUNT(c.id) as total_clicks
+  FROM urls u LEFT JOIN clicks c ON c.url_id = u.id
+  WHERE u.short_code = ? GROUP BY u.id
+`);
+const timelineQuery = db.prepare(`
+  SELECT date(timestamp) as date, COUNT(*) as clicks
+  FROM clicks WHERE url_id = ? GROUP BY date(timestamp) ORDER BY date
+`);
+const referrerQuery = db.prepare(`
+  SELECT referrer, COUNT(*) as count FROM clicks
+  WHERE url_id = ? AND referrer IS NOT NULL GROUP BY referrer ORDER BY count DESC LIMIT 10
+`);
 
 app.post('/api/shorten', (req, res) => {
   const { url } = req.body;
@@ -23,9 +38,24 @@ app.post('/api/shorten', (req, res) => {
   res.json({ short_code: code, short_url: `${req.protocol}://${req.get('host')}/${code}` });
 });
 
+app.get('/api/stats/:code', (req, res) => {
+  const row = statsQuery.get(req.params.code);
+  if (!row) return res.status(404).json({ error: 'Not found' });
+  const urlRow = findByCode.get(req.params.code);
+  res.json({
+    original_url: row.original_url,
+    created_at: row.created_at,
+    expires_at: row.expires_at,
+    total_clicks: row.total_clicks,
+    timeline: timelineQuery.all(urlRow.id),
+    top_referrers: referrerQuery.all(urlRow.id)
+  });
+});
+
 app.get('/:code', (req, res) => {
   const row = findByCode.get(req.params.code);
   if (!row) return res.status(404).json({ error: 'Not found' });
+  insertClick.run(row.id, req.get('referer') || null, req.get('user-agent') || null, null);
   res.redirect(301, row.original_url);
 });
 
