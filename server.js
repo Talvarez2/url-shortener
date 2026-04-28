@@ -2,8 +2,10 @@ const express = require('express');
 const { nanoid } = require('nanoid');
 const db = require('./src/db');
 
+const path = require('path');
 const app = express();
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
 const insertUrl = db.prepare('INSERT INTO urls (short_code, original_url) VALUES (?, ?)');
 const findByCode = db.prepare('SELECT * FROM urls WHERE short_code = ?');

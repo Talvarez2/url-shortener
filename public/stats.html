@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>URL Stats</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+  <h1>📊 Link Analytics</h1>
+  <div class="container">
+    <div id="error" class="error" role="alert"></div>
+    <div id="content" style="display:none">
+      <div class="stat-card"><h3>Original URL</h3><a id="orig" href="#" target="_blank"></a></div>
+      <div class="stat-card">
+        <h3>Total Clicks</h3>
+        <span id="clicks" style="font-size:2rem;font-weight:bold"></span>
+        <span id="created" style="display:block;font-size:0.85rem;color:#666;margin-top:0.3rem"></span>
+      </div>
+      <canvas id="chart" height="200" aria-label="Click timeline chart"></canvas>
+      <h3 style="margin-top:1.5rem">Top Referrers</h3>
+      <table><thead><tr><th>Referrer</th><th>Clicks</th></tr></thead><tbody id="refs"></tbody></table>
+    </div>
+  </div>
+  <script>
+    const code = new URLSearchParams(location.search).get('code');
+    if (!code) { document.getElementById('error').textContent = 'No short code provided'; }
+    else {
+      (async () => {
+        const res = await fetch('/api/stats/' + encodeURIComponent(code));
+        if (!res.ok) { document.getElementById('error').textContent = 'Link not found'; return; }
+        const d = await res.json();
+        document.getElementById('content').style.display = 'block';
+        document.getElementById('orig').href = d.original_url;
+        document.getElementById('orig').textContent = d.original_url;
+        document.getElementById('clicks').textContent = d.total_clicks;
+        document.getElementById('created').textContent = 'Created: ' + d.created_at;
+
+        const tbody = document.getElementById('refs');
+        d.top_referrers.forEach(r => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = '<td>' + (r.referrer || 'Direct') + '</td><td>' + r.count + '</td>';
+          tbody.appendChild(tr);
+        });
+        if (!d.top_referrers.length) tbody.innerHTML = '<tr><td colspan="2">No referrer data yet</td></tr>';
+
+        if (d.timeline.length) {
+          new Chart(document.getElementById('chart'), {
+            type: 'bar',
+            data: { labels: d.timeline.map(t => t.date), datasets: [{ label: 'Clicks', data: d.timeline.map(t => t.clicks), backgroundColor: '#2563eb' }] },
+            options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+          });
+        }
+      })();
+    }
+  </script>
+</body>
+</html>

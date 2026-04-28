@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>URL Shortener</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <h1>🔗 URL Shortener</h1>
+  <div class="container">
+    <form id="form">
+      <input type="url" id="url" placeholder="Paste a long URL here..." required aria-label="URL to shorten">
+      <button type="submit">Shorten</button>
+    </form>
+    <div id="error" class="error" role="alert"></div>
+    <div id="result" class="result">
+      <a id="link" href="#" target="_blank"></a>
+      <div>
+        <button class="copy-btn" id="copy">Copy</button>
+        <button class="stats-btn" id="stats">Stats</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    const form = document.getElementById('form'), result = document.getElementById('result'),
+          link = document.getElementById('link'), error = document.getElementById('error');
+
+    form.onsubmit = async (e) => {
+      e.preventDefault(); error.textContent = ''; result.style.display = 'none';
+      try {
+        const res = await fetch('/api/shorten', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: document.getElementById('url').value }) });
+        const data = await res.json();
+        if (!res.ok) { error.textContent = data.error; return; }
+        link.href = data.short_url; link.textContent = data.short_url; link.dataset.code = data.short_code;
+        result.style.display = 'flex';
+      } catch { error.textContent = 'Something went wrong'; }
+    };
+
+    document.getElementById('copy').onclick = () => {
+      navigator.clipboard.writeText(link.href);
+      const btn = document.getElementById('copy'); btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 1500);
+    };
+
+    document.getElementById('stats').onclick = () => window.open('/stats.html?code=' + link.dataset.code, '_blank');
+  </script>
+</body>
+</html>
